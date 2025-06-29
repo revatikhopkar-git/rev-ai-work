@@ -7,7 +7,72 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    /* styles omitted for brevity, assume previously provided CSS is here */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      padding: 1rem;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+    }
+    .course-title {
+      font-size: 1.5rem;
+      margin-top: 2rem;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+      text-align: center;
+      color: #333;
+    }
+    .course-summary {
+      text-align: center;
+      font-style: italic;
+      margin-bottom: 1rem;
+    }
+    .divider {
+      border-top: 2px solid #ccc;
+      margin: 2rem 0;
+    }
+    .event-block {
+      margin-bottom: 1.5rem;
+    }
+    .event-name {
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+    .tiles-container {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .tile {
+      background: #eee;
+      border-radius: 10px;
+      padding: 1rem;
+      width: 220px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease-in-out;
+    }
+    .tile:hover {
+      transform: scale(1.03);
+    }
+    .bar {
+      background: #ddd;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .bar-fill {
+      height: 100%;
+    }
+    .bar-text {
+      font-size: 0.85rem;
+      margin-top: 0.2rem;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -59,9 +124,114 @@
       return output;
     }
 
-    // renderCourse() function pasted here from canvas (unchanged for brevity)
-  </script>
-  <script>
+    function renderCourse(course, swimmerBestTimes, standards) {
+      const container = document.createElement("div");
+      container.className = "course-section";
+      container.innerHTML = `<div class='course-title'><i class="bi bi-flag"></i> ${course}</div>`;
+
+      const summary = document.createElement("div");
+      summary.className = 'course-summary';
+      container.appendChild(summary);
+
+      const events = Object.keys(swimmerBestTimes[course]);
+      const sortedEvents = [...events].sort((a, b) => {
+        const aIndex = eventOrder.indexOf(a);
+        const bIndex = eventOrder.indexOf(b);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      });
+
+      let regionalCuts = 0, stateCuts = 0;
+
+      sortedEvents.forEach(event => {
+        const data = swimmerBestTimes[course][event];
+        const regionals = standards.Regionals[course][event];
+        const state = standards.State[course][event];
+
+        const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
+        const regionalsSec = regionals ? parseTime(regionals) : null;
+        const stateSec = state ? parseTime(state) : null;
+
+        if (swimmerSec !== null) {
+          if (regionalsSec !== null && swimmerSec <= regionalsSec) regionalCuts++;
+          if (stateSec !== null && swimmerSec <= stateSec) stateCuts++;
+        }
+      });
+
+      summary.textContent = `${regionalCuts} Regional cut${regionalCuts !== 1 ? 's' : ''} made, ${stateCuts} State cut${stateCuts !== 1 ? 's' : ''} made.`;
+
+      const withCuts = [];
+      const withoutCuts = [];
+
+      sortedEvents.forEach(event => {
+        const data = swimmerBestTimes[course][event];
+        const regionals = standards.Regionals[course][event];
+        const state = standards.State[course][event];
+
+        const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
+        const regionalsSec = regionals ? parseTime(regionals) : null;
+        const stateSec = state ? parseTime(state) : null;
+        const madeCut = (swimmerSec !== null && (
+          (regionalsSec !== null && swimmerSec <= regionalsSec) ||
+          (stateSec !== null && swimmerSec <= stateSec)
+        ));
+
+        (madeCut ? withCuts : withoutCuts).push({ event, data, regionals, state });
+      });
+
+      [...withCuts, ...withoutCuts].forEach(({ event, data, regionals, state }) => {
+        const eventBlock = document.createElement("div");
+        eventBlock.className = "event-block";
+
+        const name = document.createElement("div");
+        name.className = "event-name";
+        name.textContent = event;
+
+        const tiles = document.createElement("div");
+        tiles.className = "tiles-container";
+
+        [
+          { label: "Regionals", cut: regionals },
+          { label: "State", cut: state }
+        ].forEach(({ label, cut }) => {
+          const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
+          const cutSec = cut ? parseTime(cut) : null;
+
+          let barHTML = '<p>Status: —</p>';
+
+          if (swimmerSec !== null && cutSec !== null) {
+            const percent = Math.min(100, Math.round((cutSec / swimmerSec) * 100));
+            const madeCut = swimmerSec <= cutSec;
+            const statusColor = madeCut ? '#28a745' : '#dc3545';
+            const statusText = madeCut
+              ? `Made the cut by ${(cutSec - swimmerSec).toFixed(2)} seconds`
+              : `${(swimmerSec - cutSec).toFixed(2)} seconds away`;
+
+            barHTML = `
+              <div class="bar">
+                <div class="bar-fill" style="background-color: ${statusColor}; width: ${percent}%"></div>
+              </div>
+              <div class="bar-text">${statusText}</div>
+            `;
+          }
+
+          const div = document.createElement("div");
+          div.className = `tile`;
+          div.innerHTML = `
+            <h2>${label}</h2>
+            <p><strong>Time Standard:</strong> ${cut || "—"}</p>
+            <p><strong>Swimmer's Best:</strong> ${data.finalTime || "—"}</p>
+            ${barHTML}
+          `;
+          tiles.appendChild(div);
+        });
+
+        eventBlock.appendChild(name);
+        eventBlock.appendChild(tiles);
+        container.appendChild(eventBlock);
+      });
+      return container;
+    }
+
     async function init() {
       const [swimRows, stdRows] = await Promise.all([
         loadCSV(swimmerCSV),
