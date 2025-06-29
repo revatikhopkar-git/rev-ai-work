@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Swim Cut Checker</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -82,48 +83,59 @@
   <h1>Saanvi Khopkar, Age 15</h1>
   <div id="content"></div>
   <script>
-    const events = [
-      "50 Freestyle", "100 Freestyle", "200 Freestyle", "100 Backstroke",
-      "200 Backstroke", "100 Breastroke", "200 Breastroke",
-      "100 Butterfly", "200 Butterfly", "200 IM"
-    ];
+    const swimmerCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv';
+    const standardsCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv';
 
-    const swimmerBestTimes = {
-      SCY: {
-        "50 Freestyle": "27.18", "100 Freestyle": "59.29", "200 Freestyle": "2:11.22",
-        "100 Backstroke": "1:09.89", "200 Backstroke": "", "100 Breastroke": "1:14.81",
-        "200 Breastroke": "2:49.24", "100 Butterfly": "1:04.97", "200 Butterfly": "", "200 IM": "2:27.15"
-      },
-      LCM: {
-        "50 Freestyle": "31.42", "100 Freestyle": "1:06.29", "200 Freestyle": "2:31.36",
-        "100 Backstroke": "1:21.21", "200 Backstroke": "", "100 Breastroke": "3:11.61",
-        "200 Breastroke": "", "100 Butterfly": "1:14.10", "200 Butterfly": "", "200 IM": "2:48.93"
-      }
-    };
-
-    const standards = {
-      Regionals: {
-        SCY: {"50 Freestyle": "27.39", "100 Freestyle": "59.09", "200 Freestyle": "2:09.19", "100 Backstroke": "1:06.29", "200 Backstroke": "2:23.99", "100 Breastroke": "1:16.69", "200 Breastroke": "2:47.19", "100 Butterfly": "1:05.89", "200 Butterfly": "2:29.59", "200 IM": "2:25.29"},
-        LCM: {"50 Freestyle": "31.69", "100 Freestyle": "1:08.19", "200 Freestyle": "2:29.49", "100 Backstroke": "1:17.59", "200 Backstroke": "2:49.39", "100 Breastroke": "1:30.29", "200 Breastroke": "3:16.29", "100 Butterfly": "1:15.99", "200 Butterfly": "2:51.79", "200 IM": "2:49.89"}
-      },
-      State: {
-        SCY: {"50 Freestyle": "24.79", "100 Freestyle": "53.39", "200 Freestyle": "1:56.79", "100 Backstroke": "59.69", "200 Backstroke": "2:10.29", "100 Breastroke": "1:08.89", "200 Breastroke": "2:31.59", "100 Butterfly": "59.39", "200 Butterfly": "2:14.99", "200 IM": "2:12.09"},
-        LCM: {"50 Freestyle": "28.59", "100 Freestyle": "1:01.59", "200 Freestyle": "2:13.39", "100 Backstroke": "1:09.59", "200 Backstroke": "2:31.29", "100 Breastroke": "1:20.99", "200 Breastroke": "2:57.09", "100 Butterfly": "1:08.59", "200 Butterfly": "2:32.09", "200 IM": "2:33.09"}
-      }
-    };
+    async function loadCSV(url) {
+      return new Promise((resolve, reject) => {
+        Papa.parse(url, {
+          download: true,
+          header: true,
+          complete: (result) => resolve(result.data),
+          error: (err) => reject(err)
+        });
+      });
+    }
 
     function parseTime(t) {
       const parts = t.split(":").map(parseFloat);
       return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
     }
 
-    function renderCourse(course) {
+    function restructureTimes(rows) {
+      const output = { SCY: {}, LCM: {} };
+      rows.forEach(r => {
+        const c = r.Course;
+        const e = r.Event;
+        if (!c || !e || !r['Final Time']) return;
+        output[c][e] = {
+          finalTime: r['Final Time'],
+          meet: r['Meet Name'] || '',
+          date: r['Event Date'] || ''
+        };
+      });
+      return output;
+    }
+
+    function restructureStandards(rows) {
+      const output = { Regionals: { SCY: {}, LCM: {} }, State: { SCY: {}, LCM: {} } };
+      rows.forEach(r => {
+        const s = r.Standard;
+        const c = r.Course;
+        const e = r.Event;
+        if (!s || !c || !e || !r.Time) return;
+        output[s][c][e] = r.Time;
+      });
+      return output;
+    }
+
+    function renderCourse(course, swimmerBestTimes, standards) {
       const container = document.createElement("div");
       container.className = "course-section";
       container.innerHTML = `<div class='course-title'>${course}</div>`;
 
-      events.forEach(event => {
-        const time = swimmerBestTimes[course][event];
+      Object.keys(swimmerBestTimes[course]).forEach(event => {
+        const data = swimmerBestTimes[course][event];
         const regionals = standards.Regionals[course][event];
         const state = standards.State[course][event];
 
@@ -141,7 +153,7 @@
           { label: "Regionals", cut: regionals },
           { label: "State", cut: state }
         ].forEach(({ label, cut }) => {
-          const swimmerSec = time ? parseTime(time) : null;
+          const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
           const cutSec = cut ? parseTime(cut) : null;
 
           let barHTML = '<p>Status: —</p>';
@@ -149,7 +161,7 @@
             const percent = Math.min(100, Math.round((cutSec / swimmerSec) * 100));
             const statusColor = swimmerSec <= cutSec ? '#28a745' : '#dc3545';
             let statusText = swimmerSec <= cutSec
-              ? `${time}s vs ${cut}s`
+              ? `${data.finalTime}s vs ${cut}s`
               : `${(swimmerSec - cutSec).toFixed(2)} seconds away`;
 
             barHTML = `
@@ -165,7 +177,9 @@
           div.innerHTML = `
             <h2>${label}</h2>
             <p><strong>Time Standard:</strong> ${cut || "—"}</p>
-            <p><strong>Swimmer's Best:</strong> ${time || "—"}</p>
+            <p><strong>Swimmer's Best:</strong> ${data.finalTime || "—"}</p>
+            <p><strong>Meet:</strong> ${data.meet || "—"}</p>
+            <p><strong>Date:</strong> ${data.date || "—"}</p>
             ${barHTML}
           `;
           tiles.appendChild(div);
@@ -178,10 +192,23 @@
       return container;
     }
 
-    const content = document.getElementById("content");
-    content.appendChild(renderCourse("SCY"));
-    content.appendChild(renderCourse("LCM"));
+    async function init() {
+      const [swimRows, stdRows] = await Promise.all([
+        loadCSV(swimmerCSV),
+        loadCSV(standardsCSV)
+      ]);
+
+      const swimmerBestTimes = restructureTimes(swimRows);
+      const standards = restructureStandards(stdRows);
+
+      const content = document.getElementById("content");
+      content.appendChild(renderCourse("SCY", swimmerBestTimes, standards));
+      content.appendChild(renderCourse("LCM", swimmerBestTimes, standards));
+    }
+
+    init();
   </script>
 </body>
 </html>
+
 
