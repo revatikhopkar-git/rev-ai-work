@@ -165,13 +165,7 @@ eventOrder.forEach(event => {
   else missedCut.push(event);
 });
 const sortedEvents = [...madeCut, ...missedCut];
-          const bMet = parseTime(times[course][b].finalTime) <= Math.min(
-            parseTime(standards.Regionals[course][b] || '999:59'),
-            parseTime(standards.State[course][b] || '999:59')
-          );
-          if (aMet && !bMet) return -1;
-          if (!aMet && bMet) return 1;
-          return eventOrder.indexOf(a) - eventOrder.indexOf(b);
+          
         });
 
       sortedEvents.forEach(event => {
