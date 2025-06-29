@@ -154,12 +154,17 @@
       summary.textContent = `${regCuts} Regionals cuts made, ${stateCuts} State cuts made.`;
       container.appendChild(summary);
 
-      const sortedEvents = eventOrder.filter(e => times[course][e])
-        .sort((a, b) => {
-          const aMet = parseTime(times[course][a].finalTime) <= Math.min(
-            parseTime(standards.Regionals[course][a] || '999:59'),
-            parseTime(standards.State[course][a] || '999:59')
-          );
+      const madeCut = [], missedCut = [];
+eventOrder.forEach(event => {
+  const best = times[course][event];
+  if (!best) return;
+  const madeAnyCut =
+    parseTime(best.finalTime) <= parseTime(standards.Regionals[course][event] || '999:59') ||
+    parseTime(best.finalTime) <= parseTime(standards.State[course][event] || '999:59');
+  if (madeAnyCut) madeCut.push(event);
+  else missedCut.push(event);
+});
+const sortedEvents = [...madeCut, ...missedCut];
           const bMet = parseTime(times[course][b].finalTime) <= Math.min(
             parseTime(standards.Regionals[course][b] || '999:59'),
             parseTime(standards.State[course][b] || '999:59')
