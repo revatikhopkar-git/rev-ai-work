@@ -9,7 +9,7 @@
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: url('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1950&q=80') no-repeat center center fixed;
+      background: url('https://images.unsplash.com/photo-1509228627159-6452b3f85ba2?auto=format&fit=crop&w=1950&q=80') no-repeat center center fixed;
       background-size: cover;
       margin: 0;
       padding: 1rem;
@@ -100,10 +100,15 @@
     }
 
     function calculateAge(dobStr) {
-      const dob = new Date(dobStr);
-      const diffMs = Date.now() - dob.getTime();
-      const ageDate = new Date(diffMs);
-      return Math.abs(ageDate.getUTCFullYear() - 1970);
+      const [month, day, year] = dobStr.split('/').map(x => parseInt(x));
+      const dob = new Date(year, month - 1, day);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      return age;
     }
 
     async function loadCSV(url) {
@@ -138,6 +143,69 @@
         output[s][c][e] = r.Time;
       });
       return output;
+    }
+
+    function renderCourse(course, times, standards) {
+      const container = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'course-title';
+      title.textContent = course;
+      container.appendChild(title);
+
+      const summary = document.createElement('div');
+      summary.className = 'course-summary';
+      const regCuts = Object.keys(standards.Regionals[course]).filter(event => times[course][event] && parseTime(times[course][event].finalTime) <= parseTime(standards.Regionals[course][event])).length;
+      const stateCuts = Object.keys(standards.State[course]).filter(event => times[course][event] && parseTime(times[course][event].finalTime) <= parseTime(standards.State[course][event])).length;
+      summary.textContent = `${regCuts} Regionals cuts made, ${stateCuts} State cuts made.`;
+      container.appendChild(summary);
+
+      eventOrder.forEach(event => {
+        const best = times[course][event];
+        if (!best) return;
+
+        const block = document.createElement('div');
+        block.className = 'event-block';
+        const name = document.createElement('div');
+        name.className = 'event-name';
+        name.textContent = event;
+        block.appendChild(name);
+
+        const tiles = document.createElement('div');
+        tiles.className = 'tiles-container';
+
+        ['Regionals', 'State'].forEach(level => {
+          const stdTime = standards[level][course][event];
+          if (!stdTime) return;
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          const bar = document.createElement('div');
+          bar.className = 'bar';
+
+          const swimmerTime = parseTime(best.finalTime);
+          const standardTime = parseTime(stdTime);
+          const met = swimmerTime <= standardTime;
+
+          const fill = document.createElement('div');
+          fill.className = 'bar-fill';
+          fill.style.width = met ? '100%' : Math.max(1, (standardTime / swimmerTime) * 100) + '%';
+          fill.style.background = met ? 'lightgreen' : 'lightcoral';
+          bar.appendChild(fill);
+
+          const text = document.createElement('div');
+          text.className = 'bar-text';
+          text.textContent = `${best.finalTime} vs ${stdTime}`;
+
+          tile.innerHTML = `<strong>${level}</strong><br>Time Standard: ${stdTime}<br>`;
+          tile.appendChild(bar);
+          tile.appendChild(text);
+          tiles.appendChild(tile);
+        });
+
+        block.appendChild(tiles);
+        container.appendChild(block);
+      });
+
+      return container;
     }
 
     async function init() {
