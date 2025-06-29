@@ -165,10 +165,8 @@ eventOrder.forEach(event => {
   else missedCut.push(event);
 });
 const sortedEvents = [...madeCut, ...missedCut];
-          
-        });
 
-      sortedEvents.forEach(event => {
+sortedEvents.forEach(event => {
         const best = times[course][event];
         if (!best) return;
 
