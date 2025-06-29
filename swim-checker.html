@@ -162,7 +162,18 @@ function renderCourse(course, times, standards) {
   summary.textContent = `${regCuts} Regionals cuts made, ${stateCuts} State cuts made.`;
   container.appendChild(summary);
 
-  eventOrder.forEach(event => {
+  const sortedEvents = eventOrder.filter(e => times[course][e])
+    .sort((a, b) => {
+      const aMetRegionals = parseTime(times[course][a].finalTime) <= parseTime(standards.Regionals[course][a] || '999:59');
+      const bMetRegionals = parseTime(times[course][b].finalTime) <= parseTime(standards.Regionals[course][b] || '999:59');
+      const aMetState = parseTime(times[course][a].finalTime) <= parseTime(standards.State[course][a] || '999:59');
+      const bMetState = parseTime(times[course][b].finalTime) <= parseTime(standards.State[course][b] || '999:59');
+      const aScore = (aMetRegionals ? 1 : 0) + (aMetState ? 1 : 0);
+      const bScore = (bMetRegionals ? 1 : 0) + (bMetState ? 1 : 0);
+      return bScore - aScore;
+    });
+
+  sortedEvents.forEach(event => {
     const best = times[course][event];
     if (!best) return;
 
@@ -206,6 +217,7 @@ function renderCourse(course, times, standards) {
 
     block.appendChild(tiles);
     container.appendChild(block);
+  });
   });
 
   return container;
