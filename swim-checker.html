@@ -9,13 +9,16 @@
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f8f9fa;
+      background: url('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1950&q=80') no-repeat center center fixed;
+      background-size: cover;
       margin: 0;
       padding: 1rem;
     }
     h1 {
       text-align: center;
       font-size: 2rem;
+      color: #fff;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
     }
     .course-title {
       font-size: 1.5rem;
@@ -23,12 +26,15 @@
       margin-bottom: 0.5rem;
       font-weight: bold;
       text-align: center;
-      color: #333;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     .course-summary {
       text-align: center;
       font-style: italic;
       margin-bottom: 1rem;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     .divider {
       border-top: 2px solid #ccc;
@@ -40,6 +46,9 @@
     .event-name {
       font-weight: bold;
       margin: 0.5rem 0;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      text-align: center;
     }
     .tiles-container {
       display: flex;
@@ -76,7 +85,7 @@
   </style>
 </head>
 <body>
-  <h1><i class="bi bi-droplet-half"></i> Saanvi Khopkar, Age 15</h1>
+  <h1 id="header"></h1>
   <div id="content"></div>
 
   <script>
@@ -84,6 +93,18 @@
     const standardsCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv';
 
     const eventOrder = ['50 Freestyle','100 Freestyle','200 Freestyle','100 Butterfly','200 Butterfly','100 Breastroke','200 Breastroke','100 Backstroke','200 Backstroke','200 IM'];
+
+    function parseTime(t) {
+      const parts = t.split(':').map(parseFloat);
+      return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
+    }
+
+    function calculateAge(dobStr) {
+      const dob = new Date(dobStr);
+      const diffMs = Date.now() - dob.getTime();
+      const ageDate = new Date(diffMs);
+      return Math.abs(ageDate.getUTCFullYear() - 1970);
+    }
 
     async function loadCSV(url) {
       return new Promise((resolve, reject) => {
@@ -96,19 +117,14 @@
       });
     }
 
-    function parseTime(t) {
-      const parts = t.split(':').map(parseFloat);
-      return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
-    }
-
     function restructureTimes(rows) {
       const output = { SCY: {}, LCM: {} };
       rows.forEach(r => {
-        const c = r.Course, e = r.Event;
-        if (!c || !e || !r['Final Time']) return;
-        const time = parseTime(r['Final Time']);
+        const c = r.Course, e = r.Event, final = r['Final Time'];
+        if (!c || !e || !final || final.trim().toLowerCase() === 'dq') return;
+        const time = parseTime(final);
         if (!output[c][e] || parseTime(output[c][e].finalTime) > time) {
-          output[c][e] = { finalTime: r['Final Time'] };
+          output[c][e] = { finalTime: final };
         }
       });
       return output;
@@ -124,119 +140,17 @@
       return output;
     }
 
-    function renderCourse(course, swimmerBestTimes, standards) {
-      const container = document.createElement("div");
-      container.className = "course-section";
-      container.innerHTML = `<div class='course-title'><i class="bi bi-flag"></i> ${course}</div>`;
-
-      const summary = document.createElement("div");
-      summary.className = 'course-summary';
-      container.appendChild(summary);
-
-      const events = Object.keys(swimmerBestTimes[course]);
-      const sortedEvents = [...events].sort((a, b) => {
-        const aIndex = eventOrder.indexOf(a);
-        const bIndex = eventOrder.indexOf(b);
-        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
-      });
-
-      let regionalCuts = 0, stateCuts = 0;
-
-      sortedEvents.forEach(event => {
-        const data = swimmerBestTimes[course][event];
-        const regionals = standards.Regionals[course][event];
-        const state = standards.State[course][event];
-
-        const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
-        const regionalsSec = regionals ? parseTime(regionals) : null;
-        const stateSec = state ? parseTime(state) : null;
-
-        if (swimmerSec !== null) {
-          if (regionalsSec !== null && swimmerSec <= regionalsSec) regionalCuts++;
-          if (stateSec !== null && swimmerSec <= stateSec) stateCuts++;
-        }
-      });
-
-      summary.textContent = `${regionalCuts} Regional cut${regionalCuts !== 1 ? 's' : ''} made, ${stateCuts} State cut${stateCuts !== 1 ? 's' : ''} made.`;
-
-      const withCuts = [];
-      const withoutCuts = [];
-
-      sortedEvents.forEach(event => {
-        const data = swimmerBestTimes[course][event];
-        const regionals = standards.Regionals[course][event];
-        const state = standards.State[course][event];
-
-        const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
-        const regionalsSec = regionals ? parseTime(regionals) : null;
-        const stateSec = state ? parseTime(state) : null;
-        const madeCut = (swimmerSec !== null && (
-          (regionalsSec !== null && swimmerSec <= regionalsSec) ||
-          (stateSec !== null && swimmerSec <= stateSec)
-        ));
-
-        (madeCut ? withCuts : withoutCuts).push({ event, data, regionals, state });
-      });
-
-      [...withCuts, ...withoutCuts].forEach(({ event, data, regionals, state }) => {
-        const eventBlock = document.createElement("div");
-        eventBlock.className = "event-block";
-
-        const name = document.createElement("div");
-        name.className = "event-name";
-        name.textContent = event;
-
-        const tiles = document.createElement("div");
-        tiles.className = "tiles-container";
-
-        [
-          { label: "Regionals", cut: regionals },
-          { label: "State", cut: state }
-        ].forEach(({ label, cut }) => {
-          const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
-          const cutSec = cut ? parseTime(cut) : null;
-
-          let barHTML = '<p>Status: —</p>';
-
-          if (swimmerSec !== null && cutSec !== null) {
-            const percent = Math.min(100, Math.round((cutSec / swimmerSec) * 100));
-            const madeCut = swimmerSec <= cutSec;
-            const statusColor = madeCut ? '#28a745' : '#dc3545';
-            const statusText = madeCut
-              ? `Made the cut by ${(cutSec - swimmerSec).toFixed(2)} seconds`
-              : `${(swimmerSec - cutSec).toFixed(2)} seconds away`;
-
-            barHTML = `
-              <div class="bar">
-                <div class="bar-fill" style="background-color: ${statusColor}; width: ${percent}%"></div>
-              </div>
-              <div class="bar-text">${statusText}</div>
-            `;
-          }
-
-          const div = document.createElement("div");
-          div.className = `tile`;
-          div.innerHTML = `
-            <h2>${label}</h2>
-            <p><strong>Time Standard:</strong> ${cut || "—"}</p>
-            <p><strong>Swimmer's Best:</strong> ${data.finalTime || "—"}</p>
-            ${barHTML}
-          `;
-          tiles.appendChild(div);
-        });
-
-        eventBlock.appendChild(name);
-        eventBlock.appendChild(tiles);
-        container.appendChild(eventBlock);
-      });
-      return container;
-    }
-
     async function init() {
       const [swimRows, stdRows] = await Promise.all([
         loadCSV(swimmerCSV),
         loadCSV(standardsCSV)
       ]);
+
+      const swimmerName = "Saanvi Khopkar";
+      const dob = swimRows[0]['swimmer_date_of_birth'];
+      const age = calculateAge(dob);
+      document.getElementById("header").innerHTML = `<i class="bi bi-droplet-half"></i> ${swimmerName}, Age ${age}`;
+
       const swimmerBestTimes = restructureTimes(swimRows);
       const standards = restructureStandards(stdRows);
       const content = document.getElementById("content");
