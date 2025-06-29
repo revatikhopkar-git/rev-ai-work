@@ -52,6 +52,12 @@
       background: #fff;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
+    .tile.cut {
+      background-color: #d4edda;
+    }
+    .tile.missed {
+      background-color: #f8d7da;
+    }
     .tile h2 {
       margin: 0 0 8px;
       font-size: 18px;
@@ -157,10 +163,14 @@
           const cutSec = cut ? parseTime(cut) : null;
 
           let barHTML = '<p>Status: —</p>';
+          let tileClass = '';
+
           if (swimmerSec !== null && cutSec !== null) {
             const percent = Math.min(100, Math.round((cutSec / swimmerSec) * 100));
-            const statusColor = swimmerSec <= cutSec ? '#28a745' : '#dc3545';
-            let statusText = swimmerSec <= cutSec
+            const madeCut = swimmerSec <= cutSec;
+            tileClass = madeCut ? 'cut' : 'missed';
+            const statusColor = madeCut ? '#28a745' : '#dc3545';
+            const statusText = madeCut
               ? `${data.finalTime}s vs ${cut}s`
               : `${(swimmerSec - cutSec).toFixed(2)} seconds away`;
 
@@ -173,13 +183,12 @@
           }
 
           const div = document.createElement("div");
-          div.className = "tile";
+          div.className = `tile ${tileClass}`;
           div.innerHTML = `
             <h2>${label}</h2>
             <p><strong>Time Standard:</strong> ${cut || "—"}</p>
             <p><strong>Swimmer's Best:</strong> ${data.finalTime || "—"}</p>
-            <p><strong>Meet:</strong> ${data.meet || "—"}</p>
-            <p><strong>Date:</strong> ${data.date || "—"}</p>
+            ${tileClass === 'cut' ? `<p><strong>Meet:</strong> ${data.meet || "—"}</p><p><strong>Date:</strong> ${data.date || "—"}</p>` : ''}
             ${barHTML}
           `;
           tiles.appendChild(div);
@@ -210,5 +219,6 @@
   </script>
 </body>
 </html>
+
 
 
