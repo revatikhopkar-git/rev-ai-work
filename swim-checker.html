@@ -49,14 +49,8 @@
       border-radius: 16px;
       color: #000;
       min-width: 240px;
-      background: #fff;
+      background: #f0f0f0;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    .tile.cut {
-      background-color: #d4edda;
-    }
-    .tile.missed {
-      background-color: #f8d7da;
     }
     .tile h2 {
       margin: 0 0 8px;
@@ -91,6 +85,13 @@
   <script>
     const swimmerCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv';
     const standardsCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv';
+
+    const eventOrder = [
+      '50 Freestyle', '100 Freestyle', '200 Freestyle',
+      '100 Butterfly', '200 Butterfly',
+      '100 Breastroke', '200 Breastroke',
+      '100 Backstroke', '200 Backstroke', '200 IM'
+    ];
 
     async function loadCSV(url) {
       return new Promise((resolve, reject) => {
@@ -138,11 +139,33 @@
       container.className = "course-section";
       container.innerHTML = `<div class='course-title'>${course}</div>`;
 
-      Object.keys(swimmerBestTimes[course]).forEach(event => {
+      const events = Object.keys(swimmerBestTimes[course]);
+      const sortedEvents = [...events].sort((a, b) => {
+        const aIndex = eventOrder.indexOf(a);
+        const bIndex = eventOrder.indexOf(b);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      });
+
+      const withCuts = [];
+      const withoutCuts = [];
+
+      sortedEvents.forEach(event => {
         const data = swimmerBestTimes[course][event];
         const regionals = standards.Regionals[course][event];
         const state = standards.State[course][event];
 
+        const swimmerSec = data.finalTime ? parseTime(data.finalTime) : null;
+        const regionalsSec = regionals ? parseTime(regionals) : null;
+        const stateSec = state ? parseTime(state) : null;
+        const madeCut = (swimmerSec !== null && (
+          (regionalsSec !== null && swimmerSec <= regionalsSec) ||
+          (stateSec !== null && swimmerSec <= stateSec)
+        ));
+
+        (madeCut ? withCuts : withoutCuts).push({ event, data, regionals, state });
+      });
+
+      [...withCuts, ...withoutCuts].forEach(({ event, data, regionals, state }) => {
         const eventBlock = document.createElement("div");
         eventBlock.className = "event-block";
 
@@ -161,12 +184,10 @@
           const cutSec = cut ? parseTime(cut) : null;
 
           let barHTML = '<p>Status: —</p>';
-          let tileClass = '';
 
           if (swimmerSec !== null && cutSec !== null) {
             const percent = Math.min(100, Math.round((cutSec / swimmerSec) * 100));
             const madeCut = swimmerSec <= cutSec;
-            tileClass = madeCut ? 'cut' : 'missed';
             const statusColor = madeCut ? '#28a745' : '#dc3545';
             const statusText = madeCut
               ? `Made the cut by ${(cutSec - swimmerSec).toFixed(2)} seconds`
@@ -181,7 +202,7 @@
           }
 
           const div = document.createElement("div");
-          div.className = `tile ${tileClass}`;
+          div.className = `tile`;
           div.innerHTML = `
             <h2>${label}</h2>
             <p><strong>Time Standard:</strong> ${cut || "—"}</p>
