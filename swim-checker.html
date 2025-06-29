@@ -123,14 +123,17 @@
     }
 
     function restructureTimes(rows) {
-      const output = { SCY: {}, LCM: {} };
-      rows.forEach(r => {
-        const c = r.Course, e = r.Event, final = r['Final Time'];
-        if (!c || !e || !final || final.trim().toLowerCase() === 'dq') return;
-        const time = parseTime(final);
-        if (!output[c][e] || parseTime(output[c][e].finalTime) > time) {
-          output[c][e] = { finalTime: final };
-        }
+  const output = { SCY: {}, LCM: {} };
+  rows.forEach(r => {
+    const c = r.Course?.trim(), e = r.Event?.trim(), final = r['Final Time']?.trim();
+    if (!c || !e || !final || final.toLowerCase() === 'dq' || final === '') return;
+    const time = parseTime(final);
+    if (!output[c][e] || parseTime(output[c][e].finalTime) > time) {
+      output[c][e] = { finalTime: final };
+    }
+  });
+  return output;
+}
       });
       return output;
     }
