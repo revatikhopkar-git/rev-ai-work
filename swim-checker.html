@@ -115,9 +115,7 @@
         const e = r.Event;
         if (!c || !e || !r['Final Time']) return;
         output[c][e] = {
-          finalTime: r['Final Time'],
-          meet: r['Meet Name'] || '',
-          date: r['Event Date'] || ''
+          finalTime: r['Final Time']
         };
       });
       return output;
@@ -171,7 +169,7 @@
             tileClass = madeCut ? 'cut' : 'missed';
             const statusColor = madeCut ? '#28a745' : '#dc3545';
             const statusText = madeCut
-              ? `${data.finalTime}s vs ${cut}s`
+              ? `Made the cut by ${(cutSec - swimmerSec).toFixed(2)} seconds`
               : `${(swimmerSec - cutSec).toFixed(2)} seconds away`;
 
             barHTML = `
@@ -188,7 +186,6 @@
             <h2>${label}</h2>
             <p><strong>Time Standard:</strong> ${cut || "—"}</p>
             <p><strong>Swimmer's Best:</strong> ${data.finalTime || "—"}</p>
-            ${tileClass === 'cut' ? `<p><strong>Meet:</strong> ${data.meet || "—"}</p><p><strong>Date:</strong> ${data.date || "—"}</p>` : ''}
             ${barHTML}
           `;
           tiles.appendChild(div);
@@ -219,6 +216,7 @@
   </script>
 </body>
 </html>
+
 
 
 
