@@ -89,146 +89,148 @@
   <div id="content"></div>
 
   <script>
+    // Make sure this URL is accessible publicly and returns proper CSV content.
+    // If the file has moved or permissions changed, the app will break.
     const swimmerCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv';
     const standardsCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv';
 
     const eventOrder = ['50 Freestyle','100 Freestyle','200 Freestyle','100 Butterfly','200 Butterfly','100 Breastroke','200 Breastroke','100 Backstroke','200 Backstroke','200 IM'];
 
-    function parseTime(t) {
-      const parts = t.split(':').map(parseFloat);
-      return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
+function parseTime(t) {
+  const parts = t.split(':').map(parseFloat);
+  return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
+}
+
+function calculateAge(dobStr) {
+  const [month, day, year] = dobStr.split('/').map(x => parseInt(x));
+  const dob = new Date(year, month - 1, day);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+async function loadCSV(url) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      complete: result => resolve(result.data),
+      error: err => reject(err)
+    });
+  });
+}
+
+function restructureTimes(rows) {
+  const output = { SCY: {}, LCM: {} };
+  rows.forEach(r => {
+    const c = r.Course?.trim(), e = r.Event?.trim(), final = r['Final Time']?.trim();
+    if (!c || !e || !final || final.toLowerCase() === 'dq' || final === '') return;
+    const time = parseTime(final);
+    if (!output[c][e] || parseTime(output[c][e].finalTime) > time) {
+      output[c][e] = { finalTime: final };
     }
+  });
+  return output;
+}
 
-    function calculateAge(dobStr) {
-      const [month, day, year] = dobStr.split('/').map(x => parseInt(x));
-      const dob = new Date(year, month - 1, day);
-      const today = new Date();
-      let age = today.getFullYear() - dob.getFullYear();
-      const m = today.getMonth() - dob.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-        age--;
-      }
-      return age;
-    }
+function restructureStandards(rows) {
+  const output = { Regionals: { SCY: {}, LCM: {} }, State: { SCY: {}, LCM: {} } };
+  rows.forEach(r => {
+    const s = r.Standard, c = r.Course, e = r.Event;
+    if (!s || !c || !e || !r.Time) return;
+    output[s][c][e] = r.Time;
+  });
+  return output;
+}
 
-    async function loadCSV(url) {
-      return new Promise((resolve, reject) => {
-        Papa.parse(url, {
-          download: true,
-          header: true,
-          complete: result => resolve(result.data),
-          error: err => reject(err)
-        });
-      });
-    }
+function renderCourse(course, times, standards) {
+  const container = document.createElement('div');
+  const title = document.createElement('div');
+  title.className = 'course-title';
+  title.textContent = course;
+  container.appendChild(title);
 
-    function restructureTimes(rows) {
-      const output = { SCY: {}, LCM: {} };
-      rows.forEach(r => {
-        const c = r.Course?.trim(), e = r.Event?.trim(), final = r['Final Time']?.trim();
-        if (!c || !e || !final || final.toLowerCase() === 'dq' || final === '') return;
-        const time = parseTime(final);
-        if (!output[c][e] || parseTime(output[c][e].finalTime) > time) {
-          output[c][e] = { finalTime: final };
-        }
-      });
-      return output;
-    }
+  const summary = document.createElement('div');
+  summary.className = 'course-summary';
+  const regCuts = Object.keys(standards.Regionals[course]).filter(event => times[course][event] && parseTime(times[course][event].finalTime) <= parseTime(standards.Regionals[course][event])).length;
+  const stateCuts = Object.keys(standards.State[course]).filter(event => times[course][event] && parseTime(times[course][event].finalTime) <= parseTime(standards.State[course][event])).length;
+  summary.textContent = `${regCuts} Regionals cuts made, ${stateCuts} State cuts made.`;
+  container.appendChild(summary);
 
-    function restructureStandards(rows) {
-      const output = { Regionals: { SCY: {}, LCM: {} }, State: { SCY: {}, LCM: {} } };
-      rows.forEach(r => {
-        const s = r.Standard, c = r.Course, e = r.Event;
-        if (!s || !c || !e || !r.Time) return;
-        output[s][c][e] = r.Time;
-      });
-      return output;
-    }
+  eventOrder.forEach(event => {
+    const best = times[course][event];
+    if (!best) return;
 
-    function renderCourse(course, times, standards) {
-      const container = document.createElement('div');
-      const title = document.createElement('div');
-      title.className = 'course-title';
-      title.textContent = course;
-      container.appendChild(title);
+    const block = document.createElement('div');
+    block.className = 'event-block';
+    const name = document.createElement('div');
+    name.className = 'event-name';
+    name.textContent = event;
+    block.appendChild(name);
 
-      const summary = document.createElement('div');
-      summary.className = 'course-summary';
-      const regCuts = Object.keys(standards.Regionals[course]).filter(event => times[course][event] && parseTime(times[course][event].finalTime) <= parseTime(standards.Regionals[course][event])).length;
-      const stateCuts = Object.keys(standards.State[course]).filter(event => times[course][event] && parseTime(times[course][event].finalTime) <= parseTime(standards.State[course][event])).length;
-      summary.textContent = `${regCuts} Regionals cuts made, ${stateCuts} State cuts made.`;
-      container.appendChild(summary);
+    const tiles = document.createElement('div');
+    tiles.className = 'tiles-container';
 
-      eventOrder.forEach(event => {
-        const best = times[course][event];
-        if (!best) return;
+    ['Regionals', 'State'].forEach(level => {
+      const stdTime = standards[level][course][event];
+      if (!stdTime) return;
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      const bar = document.createElement('div');
+      bar.className = 'bar';
 
-        const block = document.createElement('div');
-        block.className = 'event-block';
-        const name = document.createElement('div');
-        name.className = 'event-name';
-        name.textContent = event;
-        block.appendChild(name);
+      const swimmerTime = parseTime(best.finalTime);
+      const standardTime = parseTime(stdTime);
+      const met = swimmerTime <= standardTime;
 
-        const tiles = document.createElement('div');
-        tiles.className = 'tiles-container';
+      const fill = document.createElement('div');
+      fill.className = 'bar-fill';
+      fill.style.width = met ? '100%' : Math.max(1, (standardTime / swimmerTime) * 100) + '%';
+      fill.style.background = met ? 'lightgreen' : 'lightcoral';
+      bar.appendChild(fill);
 
-        ['Regionals', 'State'].forEach(level => {
-          const stdTime = standards[level][course][event];
-          if (!stdTime) return;
-          const tile = document.createElement('div');
-          tile.className = 'tile';
-          const bar = document.createElement('div');
-          bar.className = 'bar';
+      const text = document.createElement('div');
+      text.className = 'bar-text';
+      text.textContent = met ? `${best.finalTime} vs ${stdTime}` : `${(swimmerTime - standardTime).toFixed(2)}s over`;
 
-          const swimmerTime = parseTime(best.finalTime);
-          const standardTime = parseTime(stdTime);
-          const met = swimmerTime <= standardTime;
+      tile.innerHTML = `<strong>${level}</strong><br>Time Standard: ${stdTime}<br>`;
+      tile.appendChild(bar);
+      tile.appendChild(text);
+      tiles.appendChild(tile);
+    });
 
-          const fill = document.createElement('div');
-          fill.className = 'bar-fill';
-          fill.style.width = met ? '100%' : Math.max(1, (standardTime / swimmerTime) * 100) + '%';
-          fill.style.background = met ? 'lightgreen' : 'lightcoral';
-          bar.appendChild(fill);
+    block.appendChild(tiles);
+    container.appendChild(block);
+  });
 
-          const text = document.createElement('div');
-          text.className = 'bar-text';
-          text.textContent = `${best.finalTime} vs ${stdTime}`;
+  return container;
+}
 
-          tile.innerHTML = `<strong>${level}</strong><br>Time Standard: ${stdTime}<br>`;
-          tile.appendChild(bar);
-          tile.appendChild(text);
-          tiles.appendChild(tile);
-        });
+async function init() {
+  const [swimRows, stdRows] = await Promise.all([
+    loadCSV(swimmerCSV),
+    loadCSV(standardsCSV)
+  ]);
 
-        block.appendChild(tiles);
-        container.appendChild(block);
-      });
+  const swimmerName = "Saanvi Khopkar";
+  const dob = swimRows[0]['swimmer_date_of_birth'];
+  const age = calculateAge(dob);
+  document.getElementById("header").innerHTML = `<i class="bi bi-droplet-half"></i> ${swimmerName}, Age ${age}`;
 
-      return container;
-    }
-
-    async function init() {
-      const [swimRows, stdRows] = await Promise.all([
-        loadCSV(swimmerCSV),
-        loadCSV(standardsCSV)
-      ]);
-
-      const swimmerName = "Saanvi Khopkar";
-      const dob = swimRows[0]['swimmer_date_of_birth'];
-      const age = calculateAge(dob);
-      document.getElementById("header").innerHTML = `<i class="bi bi-droplet-half"></i> ${swimmerName}, Age ${age}`;
-
-      const swimmerBestTimes = restructureTimes(swimRows);
-      const standards = restructureStandards(stdRows);
-      const content = document.getElementById("content");
-      content.appendChild(renderCourse("SCY", swimmerBestTimes, standards));
-      const divider = document.createElement('div');
-      divider.className = 'divider';
-      content.appendChild(divider);
-      content.appendChild(renderCourse("LCM", swimmerBestTimes, standards));
-    }
-    init();
+  const swimmerBestTimes = restructureTimes(swimRows);
+  const standards = restructureStandards(stdRows);
+  const content = document.getElementById("content");
+  content.appendChild(renderCourse("SCY", swimmerBestTimes, standards));
+  const divider = document.createElement('div');
+  divider.className = 'divider';
+  content.appendChild(divider);
+  content.appendChild(renderCourse("LCM", swimmerBestTimes, standards));
+}
+init();
   </script>
 </body>
 </html>
