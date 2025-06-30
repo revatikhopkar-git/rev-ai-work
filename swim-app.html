@@ -30,10 +30,20 @@
       margin: 2rem auto 0.5rem;
       font-weight: bold;
     }
+    .summary h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.3rem;
+      background-color: #d0eaff;
+      padding: 0.3rem;
+      border-radius: 5px;
+    }
+    .summary p {
+      margin: 0.2rem 0;
+    }
     .divider {
       border-top: 3px solid #ccc;
       width: 90%;
-      margin: 2rem auto;
+      margin: 3rem auto;
     }
     table {
       width: 90%;
@@ -60,6 +70,9 @@
     }
     .gap-cell {
       width: 80px;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -125,10 +138,12 @@
     function renderComparisonTable(level, times, standards) {
       const container = document.createElement('div');
       const summary = document.createElement('div');
+      summary.className = 'summary';
+
       const cutsSCY = eventOrder.filter(e => times.SCY[e] && parseTime(times.SCY[e].finalTime) <= parseTime(standards[level].SCY[e] || '999:59')).length;
       const cutsLCM = eventOrder.filter(e => times.LCM[e] && parseTime(times.LCM[e].finalTime) <= parseTime(standards[level].LCM[e] || '999:59')).length;
-      summary.className = 'summary';
-      summary.textContent = `${level} - SCY: ${cutsSCY} cuts, LCM: ${cutsLCM} cuts`;
+
+      summary.innerHTML = `<h2>${level}</h2><p>SCY: ${cutsSCY} cuts &nbsp;&nbsp; LCM: ${cutsLCM} cuts</p>`;
       container.appendChild(summary);
 
       const table = document.createElement('table');
@@ -136,9 +151,9 @@
         <tr>
           <th><strong>SCY Standards</strong></th>
           <th>SCY Time</th>
-          <th>SCY Bar</th>
+          <th>SCY Status</th>
           <th><strong>Event</strong></th>
-          <th>LCM Bar</th>
+          <th>LCM Status</th>
           <th>LCM Time</th>
           <th><strong>LCM Standards</strong></th>
         </tr>
@@ -157,7 +172,7 @@
         if (stdSCY && timeSCY) {
           const met = parseTime(timeSCY) <= parseTime(stdSCY);
           const gap = (parseTime(timeSCY) - parseTime(stdSCY)).toFixed(2);
-          barSCYGap = met ? '✓' : `${gap}s`;
+          barSCYGap = met ? '0 sec away' : `${gap} sec away`;
           const fill = document.createElement('div');
           fill.className = 'bar-fill';
           fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdSCY) / parseTime(timeSCY)) * 100) + '%';
@@ -171,7 +186,7 @@
         if (stdLCM && timeLCM) {
           const met = parseTime(timeLCM) <= parseTime(stdLCM);
           const gap = (parseTime(timeLCM) - parseTime(stdLCM)).toFixed(2);
-          barLCMGap = met ? '✓' : `${gap}s`;
+          barLCMGap = met ? '0 sec away' : `${gap} sec away`;
           const fill = document.createElement('div');
           fill.className = 'bar-fill';
           fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdLCM) / parseTime(timeLCM)) * 100) + '%';
