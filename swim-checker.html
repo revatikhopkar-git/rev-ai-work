@@ -12,13 +12,21 @@
       background: url('https://images.unsplash.com/photo-1509228627159-6452b3f85ba2?auto=format&fit=crop&w=1950&q=80') no-repeat center center fixed;
       background-size: cover;
       margin: 0;
-      padding: 1rem;
+      padding-top: 80px;
       color: #2c3e50;
     }
-    h1 {
+    #header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: rgba(255, 255, 255, 0.95);
+      padding: 1rem;
       text-align: center;
       font-size: 2rem;
       color: #2c3e50;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .course-title {
       font-size: 1.5rem;
@@ -155,18 +163,18 @@
       container.appendChild(summary);
 
       const madeCut = [], missedCut = [];
-eventOrder.forEach(event => {
-  const best = times[course][event];
-  if (!best) return;
-  const madeAnyCut =
-    parseTime(best.finalTime) <= parseTime(standards.Regionals[course][event] || '999:59') ||
-    parseTime(best.finalTime) <= parseTime(standards.State[course][event] || '999:59');
-  if (madeAnyCut) madeCut.push(event);
-  else missedCut.push(event);
-});
-const sortedEvents = [...madeCut, ...missedCut];
+      eventOrder.forEach(event => {
+        const best = times[course][event];
+        if (!best) return;
+        const madeAnyCut =
+          parseTime(best.finalTime) <= parseTime(standards.Regionals[course][event] || '999:59') ||
+          parseTime(best.finalTime) <= parseTime(standards.State[course][event] || '999:59');
+        if (madeAnyCut) madeCut.push(event);
+        else missedCut.push(event);
+      });
+      const sortedEvents = [...madeCut, ...missedCut];
 
-sortedEvents.forEach(event => {
+      sortedEvents.forEach(event => {
         const best = times[course][event];
         if (!best) return;
 
