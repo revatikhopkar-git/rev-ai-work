@@ -27,8 +27,13 @@
     }
     .summary {
       text-align: center;
-      margin: 1rem auto;
+      margin: 2rem auto 0.5rem;
       font-weight: bold;
+    }
+    .divider {
+      border-top: 3px solid #ccc;
+      width: 90%;
+      margin: 2rem auto;
     }
     table {
       width: 90%;
@@ -52,6 +57,9 @@
     }
     .bar-fill {
       height: 100%;
+    }
+    .gap-cell {
+      width: 80px;
     }
   </style>
 </head>
@@ -126,11 +134,13 @@
       const table = document.createElement('table');
       table.innerHTML = `
         <tr>
-          <th><strong>SCY Std</strong></th>
-          <th>Saanvi SCY</th>
+          <th><strong>SCY Standards</strong></th>
+          <th>SCY Time</th>
+          <th>SCY Bar</th>
           <th><strong>Event</strong></th>
-          <th>Saanvi LCM</th>
-          <th><strong>LCM Std</strong></th>
+          <th>LCM Bar</th>
+          <th>LCM Time</th>
+          <th><strong>LCM Standards</strong></th>
         </tr>
       `;
 
@@ -143,8 +153,11 @@
 
         const barSCY = document.createElement('div');
         barSCY.className = 'bar';
+        let barSCYGap = '';
         if (stdSCY && timeSCY) {
           const met = parseTime(timeSCY) <= parseTime(stdSCY);
+          const gap = (parseTime(timeSCY) - parseTime(stdSCY)).toFixed(2);
+          barSCYGap = met ? '✓' : `${gap}s`;
           const fill = document.createElement('div');
           fill.className = 'bar-fill';
           fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdSCY) / parseTime(timeSCY)) * 100) + '%';
@@ -154,8 +167,11 @@
 
         const barLCM = document.createElement('div');
         barLCM.className = 'bar';
+        let barLCMGap = '';
         if (stdLCM && timeLCM) {
           const met = parseTime(timeLCM) <= parseTime(stdLCM);
+          const gap = (parseTime(timeLCM) - parseTime(stdLCM)).toFixed(2);
+          barLCMGap = met ? '✓' : `${gap}s`;
           const fill = document.createElement('div');
           fill.className = 'bar-fill';
           fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdLCM) / parseTime(timeLCM)) * 100) + '%';
@@ -164,11 +180,13 @@
         }
 
         row.innerHTML = `
-          <td><strong>${stdSCY || ''}</strong>${barSCY.outerHTML}</td>
+          <td><strong>${stdSCY || ''}</strong></td>
           <td>${timeSCY || ''}</td>
+          <td>${barSCY.outerHTML}<div class="gap-cell">${barSCYGap}</div></td>
           <td><strong>${event}</strong></td>
+          <td>${barLCM.outerHTML}<div class="gap-cell">${barLCMGap}</div></td>
           <td>${timeLCM || ''}</td>
-          <td><strong>${stdLCM || ''}</strong>${barLCM.outerHTML}</td>
+          <td><strong>${stdLCM || ''}</strong></td>
         `;
         table.appendChild(row);
       });
@@ -192,6 +210,11 @@
       const standards = restructureStandards(stdRows);
       const content = document.getElementById("content");
       content.appendChild(renderComparisonTable("Regionals", swimmerBestTimes, standards));
+
+      const divider = document.createElement('div');
+      divider.className = 'divider';
+      content.appendChild(divider);
+
       content.appendChild(renderComparisonTable("State", swimmerBestTimes, standards));
     }
     init();
