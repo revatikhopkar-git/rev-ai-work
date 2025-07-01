@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Swim Cut Checker</title>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Saanvi Khopkar Swim Cuts</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -60,153 +59,160 @@
       font-weight: bold;
     }
     .scy-met, .lcm-met {
-      background-color: #d0f0c0;
+      background-color: #d0f0c0; /* pleasant green */
     }
     .scy-miss, .lcm-miss {
-      background-color: #fbdcdc;
+      background-color: #fbdcdc; /* pleasant red */
     }
     .achieved {
       color: green;
       font-weight: bold;
     }
+    .missed {
+      color: #c0392b;
+      font-weight: bold;
+    }
+    @media (max-width: 768px) {
+      table, thead, tbody, th, td, tr {
+        font-size: 0.85rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1 id="header"></h1>
-  <div id="content"></div>
+  <div id="header">Saanvi Khopkar, Age <span id="age"></span></div>
+
+  <div id="content">
+    <!-- Tables are inserted here dynamically -->
+  </div>
+
   <script>
-    const swimmerCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv';
-    const standardsCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv';
+    const swimmerDOB = new Date("2010-01-02");
+    const today = new Date();
+    let age = today.getFullYear() - swimmerDOB.getFullYear();
+    const m = today.getMonth() - swimmerDOB.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < swimmerDOB.getDate())) age--;
+    document.getElementById("age").innerText = age;
 
-    const eventOrder = ['50 Freestyle','100 Freestyle','200 Freestyle','500 Freestyle','100 Butterfly','200 Butterfly','100 Breastroke','200 Breastroke','100 Backstroke','200 Backstroke','200 IM'];
+    const eventOrder = [
+      "50 Freestyle", "100 Freestyle", "200 Freestyle", "500 Freestyle",
+      "100 Butterfly", "200 Butterfly", "100 Breastroke", "200 Breastroke",
+      "100 Backstroke", "200 Backstroke", "200 IM"
+    ];
 
-    function parseTime(t) {
-      const parts = t.split(':').map(parseFloat);
-      return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
-    }
+    const formatTime = timeStr => {
+      if (!timeStr) return null;
+      const parts = timeStr.split(":").map(Number);
+      return parts.length === 1
+        ? parts[0]
+        : parts[0] * 60 + parts[1];
+    };
 
-    function calculateAge(dobStr) {
-      const [month, day, year] = dobStr.split('/').map(x => parseInt(x));
-      const dob = new Date(year, month - 1, day);
-      const today = new Date();
-      let age = today.getFullYear() - dob.getFullYear();
-      const m = today.getMonth() - dob.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-      return age;
-    }
+    const fetchCSV = async url => {
+      const res = await fetch(url);
+      const text = await res.text();
+      const [headers, ...rows] = text.trim().split("\n").map(r => r.split(","));
+      return rows.map(row =>
+        Object.fromEntries(row.map((v, i) => [headers[i].trim(), v.trim()]))
+      );
+    };
 
-    async function loadCSV(url) {
-      return new Promise((resolve, reject) => {
-        Papa.parse(url, {
-          download: true,
-          header: true,
-          complete: result => resolve(result.data),
-          error: err => reject(err)
-        });
-      });
-    }
+    const loadData = async () => {
+      const swimURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv";
+      const stdURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv";
 
-    function restructureTimes(rows) {
-      const output = { SCY: {}, LCM: {} };
-      rows.forEach(r => {
-        const c = r.Course?.trim(), e = r.Event?.trim(), final = r['Final Time']?.trim();
-        if (!c || !e || !final || final.toLowerCase() === 'dq' || final === '') return;
-        const time = parseTime(final);
-        if (!output[c][e] || parseTime(output[c][e].finalTime) > time) {
-          output[c][e] = { finalTime: final };
+      const swimData = await fetchCSV(swimURL);
+      const stdData = await fetchCSV(stdURL);
+
+      const pbTimes = {};
+      swimData.forEach(entry => {
+        const { course, event, final_time } = entry;
+        const key = `${course}_${event}`;
+        const ft = formatTime(final_time);
+        if (!ft) return;
+        if (!pbTimes[key] || ft < pbTimes[key].time) {
+          pbTimes[key] = { time: ft, raw: final_time };
         }
       });
-      return output;
-    }
 
-    function restructureStandards(rows) {
-      const output = { Regionals: { SCY: {}, LCM: {} }, State: { SCY: {}, LCM: {} } };
-      rows.forEach(r => {
-        const s = r.Standard, c = r.Course, e = r.Event;
-        if (!s || !c || !e || !r.Time) return;
-        output[s][c][e] = r.Time;
-      });
-      return output;
-    }
+      const buildTable = (label, stds) => {
+        const scy = [], lcm = [];
+        const getEntry = (event, course) => {
+          const stdTime = formatTime(stds[`${course}_${event}`]);
+          const swimmer = pbTimes[`${course}_${event}`];
+          if (!stdTime || !swimmer) return null;
+          const diff = swimmer.time - stdTime;
+          return {
+            event,
+            std: stdTime,
+            swimmer: swimmer.raw,
+            diff,
+            class: diff <= 0 ? `${course.toLowerCase()}-met` : `${course.toLowerCase()}-miss`,
+            status: diff <= 0 ? 'Achieved' : `${diff.toFixed(2)}s away`,
+            statusClass: diff <= 0 ? 'achieved' : 'missed'
+          };
+        };
 
-    function renderComparisonTable(level, times, standards) {
-      const container = document.createElement('div');
-      const summary = document.createElement('div');
-      summary.className = 'summary';
+        eventOrder.forEach(event => {
+          const s = getEntry(event, "SCY");
+          const l = getEntry(event, "LCM");
+          if (s || l) {
+            const row = {
+              event,
+              scy: s,
+              lcm: l
+            };
+            scy.push(row);
+          }
+        });
 
-      const cutsSCY = eventOrder.filter(e => times.SCY[e] && parseTime(times.SCY[e].finalTime) <= parseTime(standards[level].SCY[e] || '999:59')).length;
-      const cutsLCM = eventOrder.filter(e => times.LCM[e] && parseTime(times.LCM[e].finalTime) <= parseTime(standards[level].LCM[e] || '999:59')).length;
+        const countCuts = (rows, course) =>
+          rows.filter(r => r[course]?.status === "Achieved").length;
 
-      summary.innerHTML = `<h2>${level}</h2><p>SCY: ${cutsSCY} cuts &nbsp;&nbsp; LCM: ${cutsLCM} cuts</p>`;
-      container.appendChild(summary);
-
-      const table = document.createElement('table');
-      table.innerHTML = `
-        <tr>
-          <th><strong>SCY Standards</strong></th>
-          <th>SCY PB</th>
-          <th>SCY Status</th>
-          <th><strong>Event</strong></th>
-          <th>LCM Status</th>
-          <th>LCM PB</th>
-          <th><strong>LCM Standards</strong></th>
-        </tr>
-      `;
-
-      eventOrder.forEach(event => {
-        const row = document.createElement('tr');
-        const stdSCY = standards[level].SCY[event];
-        const scy = times.SCY[event];
-        const timeSCY = scy?.finalTime;
-        const stdLCM = standards[level].LCM[event];
-        const lcm = times.LCM[event];
-        const timeLCM = lcm?.finalTime;
-
-        const scyMet = stdSCY && timeSCY && parseTime(timeSCY) <= parseTime(stdSCY);
-        const lcmMet = stdLCM && timeLCM && parseTime(timeLCM) <= parseTime(stdLCM);
-
-        const scyGap = stdSCY && timeSCY ? (parseTime(timeSCY) - parseTime(stdSCY)).toFixed(2) : '';
-        const lcmGap = stdLCM && timeLCM ? (parseTime(timeLCM) - parseTime(stdLCM)).toFixed(2) : '';
-
-        row.innerHTML = `
-          <td><strong>${stdSCY || ''}</strong></td>
-          <td class="${scyMet ? 'scy-met' : 'scy-miss'}">${timeSCY || ''}</td>
-          <td class="${scyMet ? 'achieved' : ''}">${scyMet ? 'Achieved' : `${scyGap} sec away`}</td>
-          <td><strong>${event}</strong></td>
-          <td class="${lcmMet ? 'achieved' : ''}">${lcmMet ? 'Achieved' : `${lcmGap} sec away`}</td>
-          <td class="${lcmMet ? 'lcm-met' : 'lcm-miss'}">${timeLCM || ''}</td>
-          <td><strong>${stdLCM || ''}</strong></td>
+        const section = document.createElement("div");
+        section.innerHTML = `
+          <div class="summary">
+            <h2>${label}</h2>
+            <p>SCY: ${countCuts(scy, "scy")} cuts &nbsp;&nbsp; LCM: ${countCuts(scy, "lcm")} cuts</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>SCY Standards</th>
+                <th>SCY PB</th>
+                <th>Event</th>
+                <th>LCM PB</th>
+                <th>LCM Standards</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scy.map(row => `
+                <tr>
+                  <td><b>${stds[`SCY_${row.event}`] || ""}</b></td>
+                  <td class="${row.scy?.class || ""}">${row.scy?.swimmer || ""}<br><span class="${row.scy?.statusClass || ""}">${row.scy?.status || ""}</span></td>
+                  <td><b>${row.event}</b></td>
+                  <td class="${row.lcm?.class || ""}">${row.lcm?.swimmer || ""}<br><span class="${row.lcm?.statusClass || ""}">${row.lcm?.status || ""}</span></td>
+                  <td><b>${stds[`LCM_${row.event}`] || ""}</b></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
         `;
-        table.appendChild(row);
+        return section;
+      };
+
+      const standards = { Regionals: {}, State: {} };
+      stdData.forEach(entry => {
+        const key = `${entry.Course}_${entry.Event}`;
+        standards[entry.Standards][key] = entry.Time;
       });
 
-      container.appendChild(table);
-      return container;
-    }
+      const container = document.getElementById("content");
+      container.appendChild(buildTable("Regionals", standards.Regionals));
+      container.appendChild(document.createElement("div")).classList.add("divider");
+      container.appendChild(buildTable("State", standards.State));
+    };
 
-    async function init() {
-      const [swimRows, stdRows] = await Promise.all([
-        loadCSV(swimmerCSV),
-        loadCSV(standardsCSV)
-      ]);
-
-      const swimmerName = "Saanvi Khopkar";
-      const dob = swimRows[0]['swimmer_date_of_birth'];
-      const age = calculateAge(dob);
-      document.getElementById("header").innerHTML = `${swimmerName}, Age ${age}`;
-
-      const swimmerBestTimes = restructureTimes(swimRows);
-      const standards = restructureStandards(stdRows);
-      const content = document.getElementById("content");
-      content.appendChild(renderComparisonTable("Regionals", swimmerBestTimes, standards));
-
-      const divider = document.createElement('div');
-      divider.className = 'divider';
-      content.appendChild(divider);
-
-      content.appendChild(renderComparisonTable("State", swimmerBestTimes, standards));
-    }
-    init();
+    loadData();
   </script>
 </body>
 </html>
