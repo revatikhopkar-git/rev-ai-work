@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Saanvi Khopkar Swim Cuts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Swim Cut Checker</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -59,159 +59,119 @@
       font-weight: bold;
     }
     .scy-met, .lcm-met {
-      background-color: #d0f0c0; /* pleasant green */
+      background-color: #d0f0c0;
     }
     .scy-miss, .lcm-miss {
-      background-color: #fbdcdc; /* pleasant red */
+      background-color: #fbdcdc;
     }
     .achieved {
       color: green;
       font-weight: bold;
     }
-    .missed {
-      color: #c0392b;
-      font-weight: bold;
-    }
     @media (max-width: 768px) {
       table, thead, tbody, th, td, tr {
-        font-size: 0.85rem;
+        display: block;
+      }
+      th, td {
+        text-align: left;
       }
     }
   </style>
 </head>
 <body>
-  <div id="header">Saanvi Khopkar, Age <span id="age"></span></div>
-
-  <div id="content">
-    <!-- Tables are inserted here dynamically -->
-  </div>
-
+  <div id="header"></div>
+  <div id="content"></div>
   <script>
-    const swimmerDOB = new Date("2010-01-02");
-    const today = new Date();
-    let age = today.getFullYear() - swimmerDOB.getFullYear();
-    const m = today.getMonth() - swimmerDOB.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < swimmerDOB.getDate())) age--;
-    document.getElementById("age").innerText = age;
+    const swimCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv';
+    const standardsCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv';
+    const eventOrder = ['50 Freestyle','100 Freestyle','200 Freestyle','500 Freestyle','100 Butterfly','200 Butterfly','100 Breastroke','200 Breastroke','100 Backstroke','200 Backstroke','200 IM'];
+    async function fetchCSV(url) {
+      const response = await fetch(url);
+      const text = await response.text();
+      const [headerLine, ...lines] = text.trim().split('\n');
+      const headers = headerLine.split(',');
+      return lines.map(line => {
+        const values = line.split(',');
+        return headers.reduce((obj, header, i) => {
+          obj[header.trim()] = values[i]?.trim();
+          return obj;
+        }, {});
+      });
+    }
+    function parseTime(str) {
+      if (!str || str.toLowerCase() === 'dq') return null;
+      const parts = str.split(':').map(parseFloat);
+      return parts.reduce((acc, val) => acc * 60 + val);
+    }
+    function toTimeStr(seconds) {
+      if (seconds == null) return '-';
+      const min = Math.floor(seconds / 60);
+      const sec = (seconds % 60).toFixed(2).padStart(5, '0');
+      return min > 0 ? `${min}:${sec}` : `${sec}`;
+    }
+    async function loadData() {
+      const swimData = await fetchCSV(swimCSV);
+      const stdData = await fetchCSV(standardsCSV);
+      const swimmer = swimData[0];
+      const swimmerName = "Saanvi Khopkar";
+      const birthdate = new Date(swimmer['swimmer_date_of_birth']);
+      const age = new Date().getFullYear() - birthdate.getFullYear();
+      document.getElementById('header').textContent = `${swimmerName}, Age ${age}`;
 
-    const eventOrder = [
-      "50 Freestyle", "100 Freestyle", "200 Freestyle", "500 Freestyle",
-      "100 Butterfly", "200 Butterfly", "100 Breastroke", "200 Breastroke",
-      "100 Backstroke", "200 Backstroke", "200 IM"
-    ];
-
-    const formatTime = timeStr => {
-      if (!timeStr) return null;
-      const parts = timeStr.split(":").map(Number);
-      return parts.length === 1
-        ? parts[0]
-        : parts[0] * 60 + parts[1];
-    };
-
-    const fetchCSV = async url => {
-      const res = await fetch(url);
-      const text = await res.text();
-      const [headers, ...rows] = text.trim().split("\n").map(r => r.split(","));
-      return rows.map(row =>
-        Object.fromEntries(row.map((v, i) => [headers[i].trim(), v.trim()]))
-      );
-    };
-
-    const loadData = async () => {
-      const swimURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv";
-      const stdURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv";
-
-      const swimData = await fetchCSV(swimURL);
-      const stdData = await fetchCSV(stdURL);
-
-      const pbTimes = {};
-      swimData.forEach(entry => {
-        const { course, event, final_time } = entry;
-        const key = `${course}_${event}`;
-        const ft = formatTime(final_time);
-        if (!ft) return;
-        if (!pbTimes[key] || ft < pbTimes[key].time) {
-          pbTimes[key] = { time: ft, raw: final_time };
+      const swimmerPB = { SCY: {}, LCM: {} };
+      swimData.forEach(r => {
+        const c = r.Course, e = r.Event, t = parseTime(r['Final Time']);
+        if (!c || !e || !t) return;
+        if (!swimmerPB[c][e] || parseTime(swimmerPB[c][e].time) > t) {
+          swimmerPB[c][e] = { time: t, meet: r['meet_name'], date: r['event_date'] };
         }
       });
 
-      const buildTable = (label, stds) => {
-        const scy = [], lcm = [];
-        const getEntry = (event, course) => {
-          const stdTime = formatTime(stds[`${course}_${event}`]);
-          const swimmer = pbTimes[`${course}_${event}`];
-          if (!stdTime || !swimmer) return null;
-          const diff = swimmer.time - stdTime;
-          return {
-            event,
-            std: stdTime,
-            swimmer: swimmer.raw,
-            diff,
-            class: diff <= 0 ? `${course.toLowerCase()}-met` : `${course.toLowerCase()}-miss`,
-            status: diff <= 0 ? 'Achieved' : `${diff.toFixed(2)}s away`,
-            statusClass: diff <= 0 ? 'achieved' : 'missed'
-          };
-        };
-
-        eventOrder.forEach(event => {
-          const s = getEntry(event, "SCY");
-          const l = getEntry(event, "LCM");
-          if (s || l) {
-            const row = {
-              event,
-              scy: s,
-              lcm: l
-            };
-            scy.push(row);
-          }
-        });
-
-        const countCuts = (rows, course) =>
-          rows.filter(r => r[course]?.status === "Achieved").length;
-
-        const section = document.createElement("div");
-        section.innerHTML = `
-          <div class="summary">
-            <h2>${label}</h2>
-            <p>SCY: ${countCuts(scy, "scy")} cuts &nbsp;&nbsp; LCM: ${countCuts(scy, "lcm")} cuts</p>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>SCY Standards</th>
-                <th>SCY PB</th>
-                <th>Event</th>
-                <th>LCM PB</th>
-                <th>LCM Standards</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${scy.map(row => `
-                <tr>
-                  <td><b>${stds[`SCY_${row.event}`] || ""}</b></td>
-                  <td class="${row.scy?.class || ""}">${row.scy?.swimmer || ""}<br><span class="${row.scy?.statusClass || ""}">${row.scy?.status || ""}</span></td>
-                  <td><b>${row.event}</b></td>
-                  <td class="${row.lcm?.class || ""}">${row.lcm?.swimmer || ""}<br><span class="${row.lcm?.statusClass || ""}">${row.lcm?.status || ""}</span></td>
-                  <td><b>${stds[`LCM_${row.event}`] || ""}</b></td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
-        `;
-        return section;
-      };
-
-      const standards = { Regionals: {}, State: {} };
-      stdData.forEach(entry => {
-        const key = `${entry.Course}_${entry.Event}`;
-        standards[entry.Standards][key] = entry.Time;
+      const standards = { Regionals: { SCY: {}, LCM: {} }, State: { SCY: {}, LCM: {} } };
+      stdData.forEach(r => {
+        const s = r.Standards, c = r.Course, e = r.Event;
+        const t = parseTime(r.Time);
+        if (s && c && e && t) standards[s][c][e] = t;
       });
 
-      const container = document.getElementById("content");
-      container.appendChild(buildTable("Regionals", standards.Regionals));
-      container.appendChild(document.createElement("div")).classList.add("divider");
-      container.appendChild(buildTable("State", standards.State));
-    };
+      ['Regionals', 'State'].forEach(level => {
+        const summary = document.createElement('div');
+        summary.className = 'summary';
+        summary.innerHTML = `<h2>${level}</h2>`;
 
+        ['SCY', 'LCM'].forEach(course => {
+          let cuts = 0;
+          const rows = eventOrder.map(event => {
+            const std = standards[level][course][event];
+            const pb = swimmerPB[course][event]?.time;
+            const met = pb != null && std != null && pb <= std;
+            if (met) cuts++;
+            return {
+              event,
+              std,
+              pb,
+              diff: pb && std ? pb - std : null,
+              met
+            };
+          });
+
+          summary.innerHTML += `<p>${course}: ${cuts} cuts</p>`;
+          const table = document.createElement('table');
+          table.innerHTML = `<tr><th>${course} Standards</th><th>${course} PB</th><th><strong>Event</strong></th><th>${course === 'SCY' ? 'LCM PB' : 'SCY PB'}</th><th>${course === 'SCY' ? 'LCM Standards' : 'SCY Standards'}</th><th>Status</th></tr>` +
+            rows.map(r => `<tr>
+              <td class="${r.met ? course.toLowerCase()+'-met' : course.toLowerCase()+'-miss'}">${toTimeStr(r.std)}</td>
+              <td class="${r.met ? course.toLowerCase()+'-met' : course.toLowerCase()+'-miss'}">${toTimeStr(r.pb)}</td>
+              <td><strong>${r.event}</strong></td>
+              <td>-</td>
+              <td>-</td>
+              <td>${r.met ? '<span class="achieved">Achieved</span>' : r.diff != null ? `${r.diff.toFixed(2)} sec away` : '-'}</td>
+            </tr>`).join('');
+          document.getElementById('content').appendChild(summary);
+          document.getElementById('content').appendChild(table);
+        });
+        document.getElementById('content').appendChild(document.createElement('div')).className = 'divider';
+      });
+    }
     loadData();
   </script>
 </body>
