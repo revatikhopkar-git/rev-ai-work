@@ -150,11 +150,11 @@
       table.innerHTML = `
         <tr>
           <th><strong>SCY Standards</strong></th>
-          <th>SCY Time</th>
+          <th>SCY PB</th>
           <th>SCY Status</th>
           <th><strong>Event</strong></th>
           <th>LCM Status</th>
-          <th>LCM Time</th>
+          <th>LCM PB</th>
           <th><strong>LCM Standards</strong></th>
         </tr>
       `;
@@ -172,7 +172,7 @@
         if (stdSCY && timeSCY) {
           const met = parseTime(timeSCY) <= parseTime(stdSCY);
           const gap = (parseTime(timeSCY) - parseTime(stdSCY)).toFixed(2);
-          barSCYGap = met ? '0 sec away' : `${gap} sec away`;
+          barSCYGap = met ? '' : `${gap} sec away`;
           const fill = document.createElement('div');
           fill.className = 'bar-fill';
           fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdSCY) / parseTime(timeSCY)) * 100) + '%';
@@ -186,7 +186,7 @@
         if (stdLCM && timeLCM) {
           const met = parseTime(timeLCM) <= parseTime(stdLCM);
           const gap = (parseTime(timeLCM) - parseTime(stdLCM)).toFixed(2);
-          barLCMGap = met ? '0 sec away' : `${gap} sec away`;
+          barLCMGap = met ? '' : `${gap} sec away`;
           const fill = document.createElement('div');
           fill.className = 'bar-fill';
           fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdLCM) / parseTime(timeLCM)) * 100) + '%';
