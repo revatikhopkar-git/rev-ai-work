@@ -59,21 +59,6 @@
       background-color: #e9f5fb;
       font-weight: bold;
     }
-    .bar {
-      height: 10px;
-      background: #ddd;
-      border-radius: 5px;
-      overflow: hidden;
-    }
-    .bar-fill {
-      height: 100%;
-    }
-    .gap-cell {
-      width: 80px;
-      text-align: center;
-      font-size: 0.9rem;
-      font-weight: bold;
-    }
   </style>
 </head>
 <body>
@@ -166,41 +151,19 @@
         const stdLCM = standards[level].LCM[event];
         const timeLCM = times.LCM[event]?.finalTime;
 
-        const barSCY = document.createElement('div');
-        barSCY.className = 'bar';
-        let barSCYGap = '';
-        if (stdSCY && timeSCY) {
-          const met = parseTime(timeSCY) <= parseTime(stdSCY);
-          const gap = (parseTime(timeSCY) - parseTime(stdSCY)).toFixed(2);
-          barSCYGap = met ? '' : `${gap} sec away`;
-          const fill = document.createElement('div');
-          fill.className = 'bar-fill';
-          fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdSCY) / parseTime(timeSCY)) * 100) + '%';
-          fill.style.background = met ? 'lightgreen' : 'lightcoral';
-          barSCY.appendChild(fill);
-        }
+        const scyMet = stdSCY && timeSCY && parseTime(timeSCY) <= parseTime(stdSCY);
+        const lcmMet = stdLCM && timeLCM && parseTime(timeLCM) <= parseTime(stdLCM);
 
-        const barLCM = document.createElement('div');
-        barLCM.className = 'bar';
-        let barLCMGap = '';
-        if (stdLCM && timeLCM) {
-          const met = parseTime(timeLCM) <= parseTime(stdLCM);
-          const gap = (parseTime(timeLCM) - parseTime(stdLCM)).toFixed(2);
-          barLCMGap = met ? '' : `${gap} sec away`;
-          const fill = document.createElement('div');
-          fill.className = 'bar-fill';
-          fill.style.width = met ? '100%' : Math.max(1, (parseTime(stdLCM) / parseTime(timeLCM)) * 100) + '%';
-          fill.style.background = met ? 'lightgreen' : 'lightcoral';
-          barLCM.appendChild(fill);
-        }
+        const scyGap = stdSCY && timeSCY ? (parseTime(timeSCY) - parseTime(stdSCY)).toFixed(2) : '';
+        const lcmGap = stdLCM && timeLCM ? (parseTime(timeLCM) - parseTime(stdLCM)).toFixed(2) : '';
 
         row.innerHTML = `
           <td><strong>${stdSCY || ''}</strong></td>
-          <td>${timeSCY || ''}</td>
-          <td>${barSCY.outerHTML}<div class="gap-cell">${barSCYGap}</div></td>
+          <td style="background-color:${scyMet ? 'lightgreen' : 'lightcoral'}">${timeSCY || ''}</td>
+          <td>${scyMet ? 'Achieved' : `${scyGap} sec away`}</td>
           <td><strong>${event}</strong></td>
-          <td>${barLCM.outerHTML}<div class="gap-cell">${barLCMGap}</div></td>
-          <td>${timeLCM || ''}</td>
+          <td>${lcmMet ? 'Achieved' : `${lcmGap} sec away`}</td>
+          <td style="background-color:${lcmMet ? 'lightgreen' : 'lightcoral'}">${timeLCM || ''}</td>
           <td><strong>${stdLCM || ''}</strong></td>
         `;
         table.appendChild(row);
