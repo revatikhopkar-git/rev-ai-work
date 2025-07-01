@@ -69,11 +69,42 @@
       font-weight: bold;
     }
     @media (max-width: 768px) {
+      #header {
+        font-size: 1.5rem;
+        padding: 0.8rem;
+      }
+      .summary h2 {
+        font-size: 1.2rem;
+      }
+      .summary p {
+        font-size: 0.95rem;
+      }
+      table {
+        font-size: 0.9rem;
+      }
       table, thead, tbody, th, td, tr {
         display: block;
       }
-      th, td {
+      thead {
+        display: none;
+      }
+      tr {
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #ccc;
+      }
+      td {
         text-align: left;
+        padding: 0.4rem;
+        position: relative;
+      }
+      td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        position: absolute;
+        left: 0;
+        width: 45%;
+        padding-left: 0.5rem;
+        white-space: nowrap;
       }
     }
   </style>
@@ -145,35 +176,36 @@
 
         let scyCuts = 0, lcmCuts = 0;
         const table = document.createElement('table');
-        table.innerHTML = `<tr>
+        const thead = `<thead><tr>
           <th>SCY Standards</th><th>SCY PB</th>
           <th><strong>Event</strong></th>
           <th>LCM PB</th><th>LCM Standards</th>
-          <th>Status</th></tr>` +
-          eventOrder.map(event => {
-            const scyStd = standards[level]['SCY'][event];
-            const scyPB = swimmerPB['SCY'][event]?.time;
-            const scyMet = scyPB != null && scyStd != null && scyPB <= scyStd;
-            if (scyMet) scyCuts++;
+          <th>Status</th></tr></thead>`;
+        const tbody = eventOrder.map(event => {
+          const scyStd = standards[level]['SCY'][event];
+          const scyPB = swimmerPB['SCY'][event]?.time;
+          const scyMet = scyPB != null && scyStd != null && scyPB <= scyStd;
+          if (scyMet) scyCuts++;
 
-            const lcmStd = standards[level]['LCM'][event];
-            const lcmPB = swimmerPB['LCM'][event]?.time;
-            const lcmMet = lcmPB != null && lcmStd != null && lcmPB <= lcmStd;
-            if (lcmMet) lcmCuts++;
+          const lcmStd = standards[level]['LCM'][event];
+          const lcmPB = swimmerPB['LCM'][event]?.time;
+          const lcmMet = lcmPB != null && lcmStd != null && lcmPB <= lcmStd;
+          if (lcmMet) lcmCuts++;
 
-            return `<tr>
-              <td class="${scyMet ? 'scy-met' : 'scy-miss'}">${toTimeStr(scyStd)}</td>
-              <td class="${scyMet ? 'scy-met' : 'scy-miss'}">${toTimeStr(scyPB)}</td>
-              <td><strong>${event}</strong></td>
-              <td class="${lcmMet ? 'lcm-met' : 'lcm-miss'}">${toTimeStr(lcmPB)}</td>
-              <td class="${lcmMet ? 'lcm-met' : 'lcm-miss'}">${toTimeStr(lcmStd)}</td>
-              <td>
-                <div><strong>SCY:</strong> ${scyMet ? '<span class="achieved">Achieved</span>' : scyPB && scyStd ? `${(scyPB - scyStd).toFixed(2)}s away` : '-'}</div>
-                <div><strong>LCM:</strong> ${lcmMet ? '<span class="achieved">Achieved</span>' : lcmPB && lcmStd ? `${(lcmPB - lcmStd).toFixed(2)}s away` : '-'}</div>
-              </td>
-            </tr>`;
-          }).join('');
+          return `<tr>
+            <td data-label="SCY Standards" class="${scyMet ? 'scy-met' : 'scy-miss'}">${toTimeStr(scyStd)}</td>
+            <td data-label="SCY PB" class="${scyMet ? 'scy-met' : 'scy-miss'}">${toTimeStr(scyPB)}</td>
+            <td data-label="Event"><strong>${event}</strong></td>
+            <td data-label="LCM PB" class="${lcmMet ? 'lcm-met' : 'lcm-miss'}">${toTimeStr(lcmPB)}</td>
+            <td data-label="LCM Standards" class="${lcmMet ? 'lcm-met' : 'lcm-miss'}">${toTimeStr(lcmStd)}</td>
+            <td data-label="Status">
+              <div><strong>SCY:</strong> ${scyMet ? '<span class="achieved">Achieved</span>' : scyPB && scyStd ? `${(scyPB - scyStd).toFixed(2)}s away` : '-'}</div>
+              <div><strong>LCM:</strong> ${lcmMet ? '<span class="achieved">Achieved</span>' : lcmPB && lcmStd ? `${(lcmPB - lcmStd).toFixed(2)}s away` : '-'}</div>
+            </td>
+          </tr>`;
+        }).join('');
         summary.innerHTML += `<p>SCY: ${scyCuts} cuts  &nbsp; LCM: ${lcmCuts} cuts</p>`;
+        table.innerHTML = thead + '<tbody>' + tbody + '</tbody>';
         document.getElementById('content').appendChild(summary);
         document.getElementById('content').appendChild(table);
         document.getElementById('content').appendChild(document.createElement('div')).className = 'divider';
