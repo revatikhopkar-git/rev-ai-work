@@ -59,10 +59,10 @@
       font-weight: bold;
     }
     .scy-met, .lcm-met {
-      background-color: #d0f0c0;
+      background-color: #c9f5c3;
     }
     .scy-miss, .lcm-miss {
-      background-color: #fbdcdc;
+      background-color: #f8d0d0;
     }
     .achieved {
       color: green;
@@ -85,6 +85,7 @@
     const swimCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR517EAit_Mv_l2LJa7TbXINy5Eq-v9fa9kwF8QX0ZUk8GG2pRbtBjPzM4vN8X00w/pub?gid=1331787204&single=true&output=csv';
     const standardsCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8azb2ync4URwqJmg9XiYUqVH9IMsHkbVYSf71e8lwIgrqOlB9ezp4HHYhDbG_gw/pub?gid=1081039398&single=true&output=csv';
     const eventOrder = ['50 Freestyle','100 Freestyle','200 Freestyle','500 Freestyle','100 Butterfly','200 Butterfly','100 Breastroke','200 Breastroke','100 Backstroke','200 Backstroke','200 IM'];
+
     async function fetchCSV(url) {
       const response = await fetch(url);
       const text = await response.text();
@@ -98,17 +99,20 @@
         }, {});
       });
     }
+
     function parseTime(str) {
       if (!str || str.toLowerCase() === 'dq') return null;
       const parts = str.split(':').map(parseFloat);
       return parts.reduce((acc, val) => acc * 60 + val);
     }
+
     function toTimeStr(seconds) {
       if (seconds == null) return '-';
       const min = Math.floor(seconds / 60);
       const sec = (seconds % 60).toFixed(2).padStart(5, '0');
       return min > 0 ? `${min}:${sec}` : `${sec}`;
     }
+
     async function loadData() {
       const swimData = await fetchCSV(swimCSV);
       const stdData = await fetchCSV(standardsCSV);
@@ -122,7 +126,7 @@
       swimData.forEach(r => {
         const c = r.Course, e = r.Event, t = parseTime(r['Final Time']);
         if (!c || !e || !t) return;
-        if (!swimmerPB[c][e] || parseTime(swimmerPB[c][e].time) > t) {
+        if (!swimmerPB[c][e] || swimmerPB[c][e].time > t) {
           swimmerPB[c][e] = { time: t, meet: r['meet_name'], date: r['event_date'] };
         }
       });
@@ -139,36 +143,39 @@
         summary.className = 'summary';
         summary.innerHTML = `<h2>${level}</h2>`;
 
-        ['SCY', 'LCM'].forEach(course => {
-          let cuts = 0;
-          const rows = eventOrder.map(event => {
-            const std = standards[level][course][event];
-            const pb = swimmerPB[course][event]?.time;
-            const met = pb != null && std != null && pb <= std;
-            if (met) cuts++;
-            return {
-              event,
-              std,
-              pb,
-              diff: pb && std ? pb - std : null,
-              met
-            };
-          });
+        let scyCuts = 0, lcmCuts = 0;
+        const table = document.createElement('table');
+        table.innerHTML = `<tr>
+          <th>SCY Standards</th><th>SCY PB</th>
+          <th><strong>Event</strong></th>
+          <th>LCM PB</th><th>LCM Standards</th>
+          <th>Status</th></tr>` +
+          eventOrder.map(event => {
+            const scyStd = standards[level]['SCY'][event];
+            const scyPB = swimmerPB['SCY'][event]?.time;
+            const scyMet = scyPB != null && scyStd != null && scyPB <= scyStd;
+            if (scyMet) scyCuts++;
 
-          summary.innerHTML += `<p>${course}: ${cuts} cuts</p>`;
-          const table = document.createElement('table');
-          table.innerHTML = `<tr><th>${course} Standards</th><th>${course} PB</th><th><strong>Event</strong></th><th>${course === 'SCY' ? 'LCM PB' : 'SCY PB'}</th><th>${course === 'SCY' ? 'LCM Standards' : 'SCY Standards'}</th><th>Status</th></tr>` +
-            rows.map(r => `<tr>
-              <td class="${r.met ? course.toLowerCase()+'-met' : course.toLowerCase()+'-miss'}">${toTimeStr(r.std)}</td>
-              <td class="${r.met ? course.toLowerCase()+'-met' : course.toLowerCase()+'-miss'}">${toTimeStr(r.pb)}</td>
-              <td><strong>${r.event}</strong></td>
-              <td>-</td>
-              <td>-</td>
-              <td>${r.met ? '<span class="achieved">Achieved</span>' : r.diff != null ? `${r.diff.toFixed(2)} sec away` : '-'}</td>
-            </tr>`).join('');
-          document.getElementById('content').appendChild(summary);
-          document.getElementById('content').appendChild(table);
-        });
+            const lcmStd = standards[level]['LCM'][event];
+            const lcmPB = swimmerPB['LCM'][event]?.time;
+            const lcmMet = lcmPB != null && lcmStd != null && lcmPB <= lcmStd;
+            if (lcmMet) lcmCuts++;
+
+            return `<tr>
+              <td class="${scyMet ? 'scy-met' : 'scy-miss'}">${toTimeStr(scyStd)}</td>
+              <td class="${scyMet ? 'scy-met' : 'scy-miss'}">${toTimeStr(scyPB)}</td>
+              <td><strong>${event}</strong></td>
+              <td class="${lcmMet ? 'lcm-met' : 'lcm-miss'}">${toTimeStr(lcmPB)}</td>
+              <td class="${lcmMet ? 'lcm-met' : 'lcm-miss'}">${toTimeStr(lcmStd)}</td>
+              <td>
+                <div><strong>SCY:</strong> ${scyMet ? '<span class="achieved">Achieved</span>' : scyPB && scyStd ? `${(scyPB - scyStd).toFixed(2)}s away` : '-'}</div>
+                <div><strong>LCM:</strong> ${lcmMet ? '<span class="achieved">Achieved</span>' : lcmPB && lcmStd ? `${(lcmPB - lcmStd).toFixed(2)}s away` : '-'}</div>
+              </td>
+            </tr>`;
+          }).join('');
+        summary.innerHTML += `<p>SCY: ${scyCuts} cuts  &nbsp; LCM: ${lcmCuts} cuts</p>`;
+        document.getElementById('content').appendChild(summary);
+        document.getElementById('content').appendChild(table);
         document.getElementById('content').appendChild(document.createElement('div')).className = 'divider';
       });
     }
