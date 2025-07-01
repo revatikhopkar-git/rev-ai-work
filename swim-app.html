@@ -51,13 +51,32 @@
       border-collapse: collapse;
     }
     th, td {
-      border: 1px solid #ddd;
+      border: 2px solid #888;
       padding: 0.5rem;
       text-align: center;
     }
     th {
       background-color: #e9f5fb;
       font-weight: bold;
+    }
+    .scy-met {
+      background-color: #b9f6ca;
+    }
+    .scy-miss {
+      background-color: #ffcdd2;
+    }
+    .lcm-met {
+      background-color: #b2ebf2;
+    }
+    .lcm-miss {
+      background-color: #ffe0b2;
+    }
+    .achieved {
+      color: green;
+      font-weight: bold;
+    }
+    td[title] {
+      cursor: help;
     }
   </style>
 </head>
@@ -104,7 +123,7 @@
         if (!c || !e || !final || final.toLowerCase() === 'dq' || final === '') return;
         const time = parseTime(final);
         if (!output[c][e] || parseTime(output[c][e].finalTime) > time) {
-          output[c][e] = { finalTime: final };
+          output[c][e] = { finalTime: final, date: r['event_date'], meet: r['meet_name'] };
         }
       });
       return output;
@@ -147,9 +166,11 @@
       eventOrder.forEach(event => {
         const row = document.createElement('tr');
         const stdSCY = standards[level].SCY[event];
-        const timeSCY = times.SCY[event]?.finalTime;
+        const scy = times.SCY[event];
+        const timeSCY = scy?.finalTime;
         const stdLCM = standards[level].LCM[event];
-        const timeLCM = times.LCM[event]?.finalTime;
+        const lcm = times.LCM[event];
+        const timeLCM = lcm?.finalTime;
 
         const scyMet = stdSCY && timeSCY && parseTime(timeSCY) <= parseTime(stdSCY);
         const lcmMet = stdLCM && timeLCM && parseTime(timeLCM) <= parseTime(stdLCM);
@@ -159,11 +180,11 @@
 
         row.innerHTML = `
           <td><strong>${stdSCY || ''}</strong></td>
-          <td style="background-color:${scyMet ? 'lightgreen' : 'lightcoral'}">${timeSCY || ''}</td>
-          <td>${scyMet ? 'Achieved' : `${scyGap} sec away`}</td>
+          <td class="${scyMet ? 'scy-met' : 'scy-miss'}" title="${scy?.meet || ''} (${scy?.date || ''})">${timeSCY || ''}</td>
+          <td class="${scyMet ? 'achieved' : ''}">${scyMet ? 'Achieved' : `${scyGap} sec away`}</td>
           <td><strong>${event}</strong></td>
-          <td>${lcmMet ? 'Achieved' : `${lcmGap} sec away`}</td>
-          <td style="background-color:${lcmMet ? 'lightgreen' : 'lightcoral'}">${timeLCM || ''}</td>
+          <td class="${lcmMet ? 'achieved' : ''}">${lcmMet ? 'Achieved' : `${lcmGap} sec away`}</td>
+          <td class="${lcmMet ? 'lcm-met' : 'lcm-miss'}" title="${lcm?.meet || ''} (${lcm?.date || ''})">${timeLCM || ''}</td>
           <td><strong>${stdLCM || ''}</strong></td>
         `;
         table.appendChild(row);
