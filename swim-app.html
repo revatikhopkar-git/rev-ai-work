@@ -133,7 +133,7 @@
 
       const standards = { Regionals: { SCY: {}, LCM: {} }, State: { SCY: {}, LCM: {} } };
       stdData.forEach(r => {
-        const s = r.Standards, c = r.Course, e = r.Event;
+        const s = r.Standard, c = r.Course, e = r.Event;
         const t = parseTime(r.Time);
         if (s && c && e && t) standards[s][c][e] = t;
       });
